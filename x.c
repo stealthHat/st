@@ -46,6 +46,14 @@ typedef struct {
 	signed char appcursor; /* application cursor */
 } Key;
 
+/* Undercurl slope types */
+enum undercurl_slope_type {
+	UNDERCURL_SLOPE_ASCENDING = 0,
+	UNDERCURL_SLOPE_TOP_CAP = 1,
+	UNDERCURL_SLOPE_DESCENDING = 2,
+	UNDERCURL_SLOPE_BOTTOM_CAP = 3
+};
+
 /* X modifiers */
 #define XK_ANY_MOD    UINT_MAX
 #define XK_NO_MOD     0
@@ -1397,6 +1405,51 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	hbtransform(specs, glyphs, len, x, y);
 
 	return numspecs;
+}
+
+static int isSlopeRising (int x, int iPoint, int waveWidth)
+{
+	//    .     .     .     .
+	//   / \   / \   / \   / \
+	//  /   \ /   \ /   \ /   \
+	// .     .     .     .     .
+
+	// Find absolute `x` of point
+	x += iPoint * (waveWidth/2);
+
+	// Find index of absolute wave
+	int absSlope = x / ((float)waveWidth/2);
+
+	return (absSlope % 2);
+}
+
+static int getSlope (int x, int iPoint, int waveWidth)
+{
+	// Sizes: Caps are half width of slopes
+	//    1_2       1_2       1_2      1_2
+	//   /   \     /   \     /   \    /   \
+	//  /     \   /     \   /     \  /     \
+	// 0       3_0       3_0      3_0       3_
+	// <2->    <1>         <---6---->
+
+	// Find type of first point
+	int firstType;
+	x -= (x / waveWidth) * waveWidth;
+	if (x < (waveWidth * (2.f/6.f)))
+		firstType = UNDERCURL_SLOPE_ASCENDING;
+	else if (x < (waveWidth * (3.f/6.f)))
+		firstType = UNDERCURL_SLOPE_TOP_CAP;
+	else if (x < (waveWidth * (5.f/6.f)))
+		firstType = UNDERCURL_SLOPE_DESCENDING;
+	else
+		firstType = UNDERCURL_SLOPE_BOTTOM_CAP;
+
+	// Find type of given point
+	int pointType = (iPoint % 4);
+	pointType += firstType;
+	pointType %= 4;
+
+	return pointType;
 }
 
 void
