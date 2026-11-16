@@ -145,6 +145,7 @@ typedef struct {
 	char priv;
 	int arg[ESC_ARG_SIZ];
 	int narg;              /* nb of args */
+	int subarg;
 	char mode[2];
 } CSIEscape;
 
@@ -1193,6 +1194,7 @@ csiparse(void)
 	int sep = ';'; /* colon or semi-colon, but not both */
 
 	csiescseq.narg = 0;
+	csiescseq.subarg = -1;
 	if (*p == '?') {
 		csiescseq.priv = 1;
 		p++;
@@ -1208,8 +1210,10 @@ csiparse(void)
 			v = -1;
 		csiescseq.arg[csiescseq.narg++] = v;
 		p = np;
-		if (sep == ';' && *p == ':')
+		if (sep == ';' && *p == ':') {
 			sep = ':'; /* allow override to colon once */
+			csiescseq.subarg = csiescseq.narg - 1;
+		}
 		if (*p != sep || csiescseq.narg == ESC_ARG_SIZ)
 			break;
 		p++;
@@ -1479,6 +1483,8 @@ tdefcolor(const int *attr, int *npar, int l)
 
 	switch (attr[*npar + 1]) {
 	case 2: /* direct color in RGB space */
+		if (*npar == csiescseq.subarg && *npar + 5 < l)
+			(*npar)++;
 		if (*npar + 4 >= l) {
 			fprintf(stderr,
 				"erresc(38): Incorrect number of parameters (%d)\n",
@@ -1554,7 +1560,7 @@ tsetattr(const int *attr, int l)
 			break;
 		case 4:
 			term.c.attr.mode |= ATTR_UNDERLINE;
-			if (i + 1 < l) {
+			if (i == csiescseq.subarg && i + 1 < l) {
 				idx = attr[++i];
 				if (BETWEEN(idx, 1, 5)) {
 					tsetdecorstyle(&term.c.attr, idx);
