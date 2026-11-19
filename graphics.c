@@ -2010,6 +2010,8 @@ Pixmap gr_load_pixmap(ImagePlacement *placement, int frameidx, int cw, int ch) {
 	gr_load_imlib_object(frame);
 	if (!frame->imlib_object)
 		return 0;
+	if (!placement->src_pix_width || !placement->src_pix_height)
+		gr_compute_pixmap_transformation(placement);
 
 	// Create the scaled image. This is temporary, we will upload to the X
 	// server, and then delete immediately.
